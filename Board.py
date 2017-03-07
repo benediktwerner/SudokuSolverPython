@@ -1,7 +1,7 @@
 class Board:
-    def __init__(self, size, board=None):
+    def __init__(self, size, board):
         self.size = size
-        self.board = [[0]*size]*size if board == None else board
+        self.board = board
 
     def isFilled(self, row, col):
         return self.board[row][col] != 0

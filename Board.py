@@ -1,6 +1,5 @@
 class Board:
-    def __init__(self, size, board):
-        self.size = size
+    def __init__(self, board):
         self.board = board
 
     def isFilled(self, row, col):
@@ -10,7 +9,7 @@ class Board:
         self.board[row][column] = value
 
     def getPossibleCellValues(self, row, column):
-        possible_values = set(range(1,self.size+1))
+        possible_values = set((1,2,3,4,5,6,7,8,9))
         possible_values -= self.getValuesUsedInRow(row)
         possible_values -= self.getValuesUsedInColumn(column)
         possible_values -= self.getValuesUsedInBox(row, column)
@@ -18,13 +17,13 @@ class Board:
 
     def getValuesUsedInRow(self, row):
         values = set()
-        for column in range(self.size):
+        for column in range(9):
             values.add(self.board[row][column])
         return values
 
     def getValuesUsedInColumn(self, column):
         values = set()
-        for row in range(self.size):
+        for row in range(9):
             values.add(self.board[row][column])
         return values
 
@@ -39,8 +38,8 @@ class Board:
 
     def __str__(self):
         string = ""
-        for row in range(self.size):
-            for column in range(self.size):
+        for row in range(9):
+            for column in range(9):
                 string += str(self.board[row][column]) if self.board[row][column] != 0 else "."
                 if column in (2, 5):
                     string += " | "

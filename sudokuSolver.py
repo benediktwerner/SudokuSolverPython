@@ -1,10 +1,10 @@
 from Board import Board
 
 def solve(board, cell_index=0):
-    if cell_index == board.size * board.size:
+    if cell_index == 81:
         return True
-    row = cell_index // board.size
-    column = cell_index % board.size
+    row = cell_index // 9
+    column = cell_index % 9
 
     if board.isFilled(row, column):
         return solve(board, cell_index+1)
@@ -29,8 +29,8 @@ test_board = [
     [0,9,0,0,0,3,0,5,0],
     [0,0,0,9,8,0,0,0,0],
     [3,0,0,0,0,6,9,0,8]]
-b = Board(9, test_board)
-print(b)
-solve(b)
+b = Board(test_board)
 print(b)
 
+solve(b)
+print(b)

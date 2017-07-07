@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from sklearn.externals import joblib
-from skimage.feature import hog
 from Board import Board
 
 def rectify(contour):
@@ -32,12 +30,11 @@ def detect_number(image, name):
     scaled = cv2.resize(centered, (28, 28), interpolation=cv2.INTER_AREA)
     _,scaled = cv2.threshold(scaled, 64, 255, cv2.THRESH_BINARY)
     #scaled = cv2.erode(scaled, (7,7))
-    hog_fd = hog(scaled, orientations=9, pixels_per_cell=(14, 14), cells_per_block=(1, 1), visualise=False)
-    prediction = clf.predict(np.array([hog_fd], np.float64))
+    prediction = 5 # predict(scaled)
     return int(prediction[0])
 
 def detect_sudoku(image):
-    sudoku = cv2.imread("sudoku.jpg")
+    sudoku = cv2.imread(image)
     sudoku_gray = cv2.cvtColor(sudoku, cv2.COLOR_BGR2GRAY)
     height,width = sudoku_gray.shape
 
@@ -53,8 +50,8 @@ def detect_sudoku(image):
         area = cv2.contourArea(contour)
         if area > max_area:
             arcLength = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, 0.02*arcLength, True)
-            if len(approx) == 4:
+            approx = cv2.approxPolyDP(contour, 0.02*arcLength, True) # aproximate polygon
+            if len(approx) == 4: # if rectangle
                 max_area = area
                 max_contour = approx
 
@@ -64,10 +61,10 @@ def detect_sudoku(image):
     ret = cv2.getPerspectiveTransform(max_contour, h)
     warp = cv2.warpPerspective(sudoku_thresh, ret, (450,450))
 
-    cv2.imshow("Sudoku", warp)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return
+    # cv2.imshow("Sudoku", warp)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # return
 
     # Remove border
     cv2.imshow("before", warp)
@@ -98,7 +95,10 @@ def detect_sudoku(image):
     # warp = cv2.erode(warp, (5, 5), iterations=4)
     # opened = cv2.morphologyEx(warp, cv2.MORPH_OPEN, (3, 3))
 
-    clf = joblib.load("digits_cls.pkl")
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return
+
     sudoku_board = []
     for y in range(9):
         row = []

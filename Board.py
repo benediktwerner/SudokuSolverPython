@@ -1,5 +1,13 @@
+def check_board(board):
+    if len(board) != 9:
+        raise "Board height is not 9"
+    for row in board:
+        if len(row) != 9:
+            raise "Board width is not 9"
+
 class Board:
     def __init__(self, board):
+        check_board(board)
         self.board = board
 
     def isFilled(self, row, col):

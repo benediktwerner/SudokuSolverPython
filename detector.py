@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from Board import Board
 
-def rectify(contour):
+def rectify_contours(contour):
     contour = contour.reshape((4,2))
     result = np.zeros((4,2), np.float32)
 
@@ -15,8 +15,12 @@ def rectify(contour):
     result[3] = contour[np.argmax(diff)]
     return result
 
+def wk():
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 def detect_number(image, name):
-    _, contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _, contours, _ = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     rects = [cv2.boundingRect(contour) for contour in contours]
     if not rects:
         return 0
@@ -26,6 +30,12 @@ def detect_number(image, name):
     new_y = round(length/2 - h/2)
     centered = np.zeros((length, length), np.uint8)
     centered[new_y:new_y+h, new_x:new_x+w] = image[y:y+h, x:x+w]
+
+    #DEBUG
+    cv2.imshow(name, centered)
+    return 1
+    #DEBUG END
+
     #centered = cv2.erode(centered, (11, 11))
     scaled = cv2.resize(centered, (28, 28), interpolation=cv2.INTER_AREA)
     _,scaled = cv2.threshold(scaled, 64, 255, cv2.THRESH_BINARY)
@@ -33,17 +43,33 @@ def detect_number(image, name):
     prediction = 5 # predict(scaled)
     return int(prediction[0])
 
-def detect_sudoku(image):
-    sudoku = cv2.imread(image)
-    sudoku_gray = cv2.cvtColor(sudoku, cv2.COLOR_BGR2GRAY)
-    height,width = sudoku_gray.shape
+def get_corner(image, xDir, yDir):
+    for i in range(30):
+        for j in range(i+1):
+            x = (i - j) if xDir == 1 else (449 - i + j)
+            y = j if yDir == 1 else (449 - j)
+            if image[y, x] == 255:
+                return (x, y)
 
-    # Blurr and threshold
-    sudoku_gray = cv2.GaussianBlur(sudoku_gray, (11,11), 0)
-    sudoku_thresh = cv2.adaptiveThreshold(sudoku_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-    _, contours, _ = cv2.findContours(sudoku_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+def get_corners(image):
+    corners = []
+    corners.append(get_corner(image,  1,  1))
+    corners.append(get_corner(image, -1,  1))
+    corners.append(get_corner(image, -1, -1))
+    corners.append(get_corner(image,  1, -1))
+    return corners
+
+def threshold(image):
+    image = cv2.GaussianBlur(image, (11,11), 0)
+    return cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+def detect_sudoku(image):
+    sudoku = cv2.imread(image, 0)
+    sudoku = threshold(sudoku)
 
     # Find largest blob
+    _, contours, _ = cv2.findContours(sudoku.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    height, width = sudoku.shape
     max_area = (min(width, height)/2)**2 # assume the board covers at least a quater of the screen
     max_contour = None
     for contour in contours:
@@ -56,22 +82,20 @@ def detect_sudoku(image):
                 max_contour = approx
 
     # Rectify board
-    max_contour = rectify(max_contour)
+    max_contour = rectify_contours(max_contour)
     h =  np.array(((0,0), (449,0), (449,449), (0,449)), np.float32)
     ret = cv2.getPerspectiveTransform(max_contour, h)
-    warp = cv2.warpPerspective(sudoku_thresh, ret, (450,450))
+    warp = cv2.warpPerspective(sudoku, ret, (450,450))
 
-    # cv2.imshow("Sudoku", warp)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    # return
+    cv2.imshow("warp", warp)
 
     # Remove border
-    cv2.imshow("before", warp)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     _,border = cv2.threshold(warp, 64, 255, cv2.THRESH_BINARY)
-    border = cv2.dilate(warp, kernel, iterations=2)
+    border = cv2.dilate(border, kernel, iterations=2)
+    _,border = cv2.threshold(border, 64, 255, cv2.THRESH_BINARY)
     cv2.imshow("dilated", border)
+
     cv2.floodFill(border, np.zeros((452, 452), np.uint8), (0, 0), 64)
     for y, row in enumerate(border):
         for x, pixel in enumerate(row):
@@ -79,38 +103,40 @@ def detect_sudoku(image):
                 border[y, x] = 255
             else:
                 border[y, x] = 0
+
     cv2.imshow("border", border)
     without_border = cv2.bitwise_and(warp, border)
     cv2.imshow("without border", without_border)
+
     kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     without_border = cv2.erode(without_border, kernel2, iterations=1)
     cv2.imshow("eroded", without_border)
 
     # Remove border and leftover noise
-    # cv2.imshow("before", warp)
-    # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    # warp = cv2.dilate(warp, kernel, iterations=1)
-    # cv2.imshow("after 1", warp)
-    # cv2.floodFill(warp, np.zeros((452, 452), np.uint8), (0,0), 0)
-    # warp = cv2.erode(warp, (5, 5), iterations=4)
-    # opened = cv2.morphologyEx(warp, cv2.MORPH_OPEN, (3, 3))
+    dilate = cv2.dilate(without_border, kernel2, iterations=1)
+    cv2.imshow("after dilate", dilate)
+    opened = cv2.morphologyEx(dilate, cv2.MORPH_OPEN, (3, 3))
+    cv2.imshow("after open", opened)
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return
+    # Rewarp image without border
+    corners = np.array(get_corners(border), np.float32)
+    # for c in corners:
+    #     cv2.rectangle(opened, (c[0]-1,c[1]-1), (c[0]+1,c[1]+1), 255)
+    # cv2.imshow("corners", opened)
+    h = np.array(((0,0), (449,0), (449,449), (0,449)), np.float32)
+    ret = cv2.getPerspectiveTransform(corners, h)
+    final = cv2.warpPerspective(opened, ret, (450,450))
+    # _,final = cv2.threshold(final, 70, 255, cv2.THRESH_BINARY)
+    cv2.imshow("final", final)
 
     sudoku_board = []
     for y in range(9):
         row = []
         for x in range(9):
-            row.append(detect_number(without_border[y*50:(y+1)*50, x*50:(x+1)*50], "{} {}".format(x,y)))
+            row.append(detect_number(final[y*50:(y+1)*50, x*50:(x+1)*50], "{} {}".format(x,y)))
         sudoku_board.append(row)
+        if y > 2: return wk()
 
-    print(Board(9, sudoku_board))
+    return Board(9, sudoku_board)
 
-    # cv2.imshow("Sudoku Warp", warp)
-    # cv2.imshow("Sudoku Opened", opened)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-detect_sudoku("sudoku.jpg")
+print(detect_sudoku("sudoku.jpg"))

@@ -153,10 +153,13 @@ class NumberDetector:
         _,image = cv2.threshold(image, 64, 255, cv2.THRESH_BINARY)
         h,w = image.shape
         x = round(w/2)
+        foundDigit = False
         for y in range(h//2, round(h*0.85)):
             if image[y, x] > 230:
                 cv2.floodFill(image, np.zeros((w+2, h+2), np.uint8), (x, y), 64)
+                foundDigit = True
                 break
+        if not foundDigit:
             return None
         for y, row in enumerate(image):
             for x, pixel in enumerate(row):
